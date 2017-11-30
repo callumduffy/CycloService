@@ -1,10 +1,10 @@
-var http = require('http')
-var express = require('express')
+var http = require('http');
+var express = require('express');
 
 //code must be ran with a port num
 const PORT_NUM = process.argv[2];
 
-var workerNode = express()
+var workerNode = express();
 
 //probably wont use but leaving for the minute
 workerNode.get('/', (req,res) => {

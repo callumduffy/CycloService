@@ -1,7 +1,15 @@
-var http = require('http')
-var express = require('express')
+var http = require('http');
+var express = require('express');
+var managerNode = express();
+var git = require('nodegit');
 
-var managerNode = express()
+Git.Clone("https://github.com/callumduffy/chatProtocol", "repo-folder").then(function(repository) {
+  //plan is to clone repo, then get its head
+  //we want to iterate by commit, sending a worker a commit each time
+  //on receipt of a post, check if its a result or nah
+  //and then send another commit if possible
+  //when none left send ()
+});
 
 var options = {
   hostname: 'localhost',
@@ -30,7 +38,8 @@ managerNode.listen(3000, (err) => {
 	console.log("Manager listening on port 3000");
 
 	//small piece of code to start the server
-	//will send an initial post to the worker
+	//will send an initial post to the worker to check its working
+
 	// write data to request body
 	req.write('{"string": "Hello, World"}');
 	req.end();
