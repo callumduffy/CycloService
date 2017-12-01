@@ -13,12 +13,13 @@ workerNode.get('/', (req,res) => {
 
 //method for the worker to handle post requests from the manager
 workerNode.post('/', (req,res) => {
-	console.log("Item received");
+	console.log('Item received');
+	res.send('Yo.');
 });
 
 workerNode.listen(PORT_NUM, (err) => {
 	if(err){
-		return console.log("Worker cannot listen on port " + PORT_NUM);
+		return console.log('Worker cannot listen on port ' + PORT_NUM);
 	}
-	console.log("Worker listening on port "  + PORT_NUM);
+	console.log('Worker listening on port '  + PORT_NUM);
 });
