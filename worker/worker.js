@@ -5,6 +5,16 @@ var express = require('express');
 const PORT_NUM = process.argv[2];
 
 var workerNode = express();
+var req;
+var manager = {
+    hostname: 'localhost',
+    port: 3000,
+    path: '',
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    }
+  };
 
 //probably wont use but leaving for the minute
 workerNode.get('/', (req,res) => {
@@ -13,8 +23,10 @@ workerNode.get('/', (req,res) => {
 
 //method for the worker to handle post requests from the manager
 workerNode.post('/', (req,res) => {
-	console.log('Item received');
-	res.send('Yo.');
+	console.log('gotten it');
+	req = http.request(manager);
+	req.write('send');
+	req.end();
 });
 
 workerNode.listen(PORT_NUM, (err) => {

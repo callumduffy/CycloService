@@ -1,45 +1,50 @@
 const http = require('http');
-var express = require('express');
-const managerNode = express();
 const git = require('nodegit');
 const path = require('path');
 const fs = require('fs');
-
-//plan is to clone repo, then get its head
-  //we want to iterate by commit, sending a worker a commit each time
-  //on receipt of a post, check if its a result or nah
-  //and then send another commit if possible
-  //when none left send ()
-
-  //however not sure how to do this yet
-  //so going to start by doing last commit, file by file.
-  //should be a good start
+const express = require('express');
+const managerNode = express();
 
 var fileArray =[];
 var fileIndex = 0;
+var workers = [];
+var work_port_num = 3001;
+var workerNum = 3;
 
-console.log(fileArray.length);
+//set up array for initialising the workers
+for(var i=0;i<workerNum;i++){
+  //options for the workers
+  var w1 = {
+    hostname: 'localhost',
+    port: work_port_num,
+    path: '',
+    method: 'POST',
+    headers: {
+        'Content-Type': 'application/json',
+    }
+  };
+  workers.push(w1);
+  work_port_num++;
+  console.log('Worker created on port: ' + work_port_num);
+}
 
-var options = {
-  hostname: 'localhost',
-  port: 3002,
-  path: '',
-  method: 'POST',
-  headers: {
-      'Content-Type': 'application/json',
-  }
-};
-
-//probably wont use but leaving for the minute
+//clone repo, and sort the repo into js files
+//then send message to workers to tell them to start
 managerNode.get('/', (req,res) => {
   console.log('Cloning the repo, please wait...');
   var repo = git.Clone('https://github.com/callumduffy/http-s-proxy.git', path.join(__dirname,'./repo-folder')).catch((error) =>{
-    console.log("error on clone");
+    console.log('error on clone');
   }).then((repo) => {
     //get array of js files
-    console.log('pre-file loop');
     repoToArray(path.join(__dirname,'./repo-folder'), /\.js$/);
-    console.log(fileArray.length);
+    console.log("Cloning done..proceeding to allow work stealing");
+
+  //loop to send init messages to the workers to get them to ask for work
+  for(var i=0; i<workers.length;i++){
+    req = http.request(workers[i]);
+    req.write(JSON.stringify({'String':fileArray[fileIndex]}));
+    req.end();
+  }
   });
 
   //finds all js files in the repo that was cloned
@@ -48,6 +53,8 @@ managerNode.get('/', (req,res) => {
     for (var i = 0; i < files.length; i++) {
       var file = path.join(repoPath, files[i]);
       var fileOrDir = fs.lstatSync(file);
+      //check if a file or directory
+      //if directory, recursion
       if(fileOrDir.isDirectory()){
         repoToArray(file,fileType);
       }
@@ -55,37 +62,13 @@ managerNode.get('/', (req,res) => {
         fileArray.push(file);
       }
     }
-    console.log('Donex1.');
   }
-
-  res.send('Hello');
+  res.send('Manager started');
 });
 
 //method for the manager to handle post requests from the worker
 managerNode.post('/', (req,res) => {
-  //first elem will be 0 if worker has never received work
-  if(0 != 0){
-    if(fileIndex = fileArray.length-1){
-      res.send('()');
-    }
-    else{
-      res.send('0');
-      //res.sendFile(fileArray[fileIndex]);
-      fileIndex++;
-    }  }
-  //if not 0, then it is a worker posting a response and requesting work
-  else{
-    if(fileIndex = fileArray.length-1){
-      //store the commit details
-      res.send('()');
-    }
-    else{
-      //store deets
-      res.sendFile(fileArray[fileIndex]);
-      fileIndex++;
-    }
-  }
-	console.log(req);
+	console.log('posted back baby');
 });
 
 managerNode.listen(3000, (err) => {
@@ -94,7 +77,7 @@ managerNode.listen(3000, (err) => {
 	}
 	console.log('Manager listening on port 3000');
 
-	//small piece of cxode to start the server
+	//small piece of code to start the server
 	//will send an initial post to the worker to check its working
 
 	// write data to request body
