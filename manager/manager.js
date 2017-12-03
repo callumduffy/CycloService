@@ -3,29 +3,39 @@ const git = require('nodegit');
 const path = require('path');
 const fs = require('fs');
 const express = require('express');
+const bodyParser = require('body-parser');
+const querystring = require('querystring');
+var request = require('request');
+const escomplex = require('escomplex');
 const managerNode = express();
+var esprima = require('esprima');
+
 
 var fileArray =[];
 var fileIndex = 0;
+var complexities =[];
 var workers = [];
 var work_port_num = 3001;
 var workerNum = 3;
+var workersDone = 0;
+managerNode.use(bodyParser.json());
+managerNode.use(bodyParser.urlencoded({ extended: true }));
 
 //set up array for initialising the workers
 for(var i=0;i<workerNum;i++){
   //options for the workers
-  var w1 = {
+  var options = {
     hostname: 'localhost',
     port: work_port_num,
-    path: '',
+    path: '/init',
     method: 'POST',
     headers: {
-        'Content-Type': 'application/json',
+        'Content-Type': 'text/plain',
     }
   };
-  workers.push(w1);
+  workers.push(options);
+  console.log('Ready to send to port: ' + work_port_num);
   work_port_num++;
-  console.log('Worker created on port: ' + work_port_num);
 }
 
 //clone repo, and sort the repo into js files
@@ -33,17 +43,18 @@ for(var i=0;i<workerNum;i++){
 managerNode.get('/', (req,res) => {
   console.log('Cloning the repo, please wait...');
   var repo = git.Clone('https://github.com/callumduffy/http-s-proxy.git', path.join(__dirname,'./repo-folder')).catch((error) =>{
-    console.log('error on clone');
+    console.log('Repo already cloned or doesnt exist');
   }).then((repo) => {
     //get array of js files
     repoToArray(path.join(__dirname,'./repo-folder'), /\.js$/);
-    console.log("Cloning done..proceeding to allow work stealing");
+    console.log("Cloning done...ready to start calculating");
 
   //loop to send init messages to the workers to get them to ask for work
   for(var i=0; i<workers.length;i++){
     req = http.request(workers[i]);
-    req.write(JSON.stringify({'String':fileArray[fileIndex]}));
+    req.write(JSON.stringify({"String": "Hello" }));
     req.end();
+    workers[i].path = '/work';
   }
   });
 
@@ -68,7 +79,76 @@ managerNode.get('/', (req,res) => {
 
 //method for the manager to handle post requests from the worker
 managerNode.post('/', (req,res) => {
-	console.log('posted back baby');
+  //get port of worker
+  var portString = 'http://localhost:' + req.body.port + '/work';
+  //in case the file didnt exist..
+  if(req.body.status == 'invalid'){
+      console.log('Error with file: ' + req.body.index);
+      complexities.push({
+        index: req.body.index,
+        path: req.body.path,
+        score: req.body.score,
+        status: -1
+      });
+  }
+  else{
+    if(req.body.status== 'done'){
+      console.log('Score for file: '+ req.body.score);
+      complexities.push({
+        index: req.body.index,
+        path: req.body.path,
+        score: req.body.score,
+        status: 1
+      });
+    }
+
+    if(fileIndex<fileArray.length){
+      console.log('Worker ' + req.body.port + ' ready to receive work');
+      fileIndex++;
+      
+      request.post(
+        portString,
+        { json: {
+          index : fileIndex,
+          path : fileArray[fileIndex],
+          status : 200
+      } },
+      function (error, response, body) {
+          if (!error && response.statusCode == 200) {
+            console.log(body)
+          }
+      });
+
+      console.log(fileIndex + ' sent to worker ' + req.body.port);
+    }
+    else{
+      console.log('all files sent');
+      request.post(
+        portString,
+        { json: {
+          index : fileIndex,
+          path : fileArray[fileIndex],
+          status : 404
+      } },
+      function (error, response, body) {
+          if (!error && response.statusCode == 200) {
+            console.log(body)
+          }
+      });
+      workersDone++;
+      if(workersDone == 3){
+        console.log('All compiled.');
+        var total =0;
+        for(var i=0;i<complexities.length;i++){
+          if(complexities[i].status==1){
+            total += complexities[i].score;
+          }
+        }
+        var avg = total/complexities.length;
+        console.log('Average complexity of repo = ' + avg);
+      }
+    }
+  }
 });
 
 managerNode.listen(3000, (err) => {
@@ -76,24 +156,4 @@ managerNode.listen(3000, (err) => {
 		return console.log('Manager cannot listen on port 3000.');
 	}
 	console.log('Manager listening on port 3000');
-
-	//small piece of code to start the server
-	//will send an initial post to the worker to check its working
-
-	// write data to request body
-	// req.write('{"string": "Hello, World"}');
-	// req.end();
 });
-
-// var req = http.request(options, function(res) {
-//   console.log('Status: ' + res.statusCode);
-//   console.log('Headers: ' + JSON.stringify(res.headers));
-//   res.setEncoding('utf8');
-//   res.on('data', function (body) {
-//     console.log('Body: ' + body);
-//   });
-// });
-
-// req.on('error', function(e) {
-//   console.log('problem with request: ' + e.message);
-// });
