@@ -40,9 +40,10 @@ for(var i=0;i<workerNum;i++){
 
 //clone repo, and sort the repo into js files
 //then send message to workers to tell them to start
-managerNode.get('/', (req,res) => {
+managerNode.get('/repoURL', (req,res) => {
   console.log('Cloning the repo, please wait...');
-  var repo = git.Clone('https://github.com/callumduffy/http-s-proxy.git', path.join(__dirname,'./repo-folder')).catch((error) =>{
+  var url = req.body,repoURL;
+  var repo = git.Clone(url, path.join(__dirname,'./repo-folder')).catch((error) =>{
     console.log('Repo already cloned or doesnt exist');
   }).then((repo) => {
     //get array of js files
@@ -74,7 +75,7 @@ managerNode.get('/', (req,res) => {
       }
     }
   }
-  res.send('Manager started');
+  res.send('Calculating results, please wait...');
 });
 
 //method for the manager to handle post requests from the worker
