@@ -40,11 +40,13 @@ for(var i=0;i<workerNum;i++){
 
 //clone repo, and sort the repo into js files
 //then send message to workers to tell them to start
-managerNode.get('/repoURL', (req,res) => {
+managerNode.post('/repoURL', (req,res) => {
   console.log('Cloning the repo, please wait...');
-  var url = req.body,repoURL;
+  var url = req.body.Repo;
+  console.log(url);
   var repo = git.Clone(url, path.join(__dirname,'./repo-folder')).catch((error) =>{
     console.log('Repo already cloned or doesnt exist');
+    console.log(error.message);
   }).then((repo) => {
     //get array of js files
     repoToArray(path.join(__dirname,'./repo-folder'), /\.js$/);
